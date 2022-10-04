@@ -18,5 +18,5 @@ public class DFSAttr {
     private Color color;
     private int depth;
     private int finish;
-    private Node prefix;
+    private String prefixId;
 }

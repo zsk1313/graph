@@ -50,6 +50,20 @@ class ExtMutableNetworkTest {
         System.out.println(stronglyConnectedComponents);
     }
 
+    @Test
+    void mstKruskal() {
+        MutableNetwork<Node, WeightEdge> mstNetwork = createMst01();
+        List<WeightEdge> weightEdges = ExtMutableNetwork.mstKruskal(mstNetwork);
+        System.out.println(weightEdges);
+    }
+
+    @Test
+    void mstPrim() {
+        MutableNetwork<Node, WeightEdge> mstNetwork = createMst01();
+        Map<String, PrimAttr> primAttrMap = ExtMutableNetwork.mstPrim(mstNetwork, "a");
+        System.out.println(primAttrMap);
+    }
+
     private static MutableNetwork<Node, Edge> createBfs01() {
         MutableNetwork<Node, Edge> bfs = NetworkBuilder.undirected().allowsParallelEdges(false).nodeOrder(ElementOrder.insertion()).build();
         Node v = new Node("v");
@@ -142,5 +156,34 @@ class ExtMutableNetworkTest {
         dfs.addEdge(d, c, new Edge("d-c"));
         dfs.addEdge(d, h, new Edge("d-h"));
         return dfs;
+    }
+
+    private static MutableNetwork<Node, WeightEdge> createMst01() {
+        MutableNetwork<Node, WeightEdge> mst = NetworkBuilder.undirected().allowsParallelEdges(false).nodeOrder(ElementOrder.insertion()).build();
+        Node a = new Node("a");
+        Node b = new Node("b");
+        Node c = new Node("c");
+        Node d = new Node("d");
+        Node e = new Node("e");
+        Node f = new Node("f");
+        Node g = new Node("g");
+        Node h = new Node("h");
+        Node i = new Node("i");
+
+        mst.addEdge(a, b, new WeightEdge("a-b",4));
+        mst.addEdge(a, h, new WeightEdge("a-h",8));
+        mst.addEdge(b, h, new WeightEdge("b-h",11));
+        mst.addEdge(b, c, new WeightEdge("b-c",8));
+        mst.addEdge(h, i, new WeightEdge("h-i",7));
+        mst.addEdge(h, g, new WeightEdge("h-g",1));
+        mst.addEdge(i, c, new WeightEdge("i-c",2));
+        mst.addEdge(i, g, new WeightEdge("i-g",6));
+        mst.addEdge(c, d, new WeightEdge("c-d",7));
+        mst.addEdge(c, f, new WeightEdge("c-f",4));
+        mst.addEdge(g, f, new WeightEdge("g-f",2));
+        mst.addEdge(d, e, new WeightEdge("d-e",9));
+        mst.addEdge(d, f, new WeightEdge("d-f",14));
+        mst.addEdge(f, e, new WeightEdge("f-e",10));
+        return mst;
     }
 }

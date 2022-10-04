@@ -2,6 +2,8 @@ package org.zsk13.graph.domain.po;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.graph.ElementOrder;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.MutableNetwork;
@@ -49,7 +51,7 @@ public class ExtMutableNetwork<N extends Node, E extends Edge> implements ExtNet
                 BFSAttr sBfsAttr = bfsAttrMap.get(s.getId());
                 sBfsAttr.setColor(Color.GRAY);
                 sBfsAttr.setDepth(0);
-                sBfsAttr.setPrefix(null);
+                sBfsAttr.setPrefixId(null);
                 LinkedList<Node> q = new LinkedList<>();
                 q.addFirst(s);
                 while (!q.isEmpty()) {
@@ -60,7 +62,7 @@ public class ExtMutableNetwork<N extends Node, E extends Edge> implements ExtNet
                         if (vBfsAttr.getColor().equals(Color.WHITE)) {
                             vBfsAttr.setColor(Color.GRAY);
                             vBfsAttr.setDepth(uBfsAttr.getDepth() + 1);
-                            vBfsAttr.setPrefix(u);
+                            vBfsAttr.setPrefixId(u.getId());
                             q.addLast(v);
                         }
                     });
@@ -84,10 +86,10 @@ public class ExtMutableNetwork<N extends Node, E extends Edge> implements ExtNet
     private void printPath(Map<String, BFSAttr> bfsAttrMap, LinkedList<String> path, String s, String v) {
         if (Objects.equals(s, v)) {
             path.addLast(s);
-        } else if (Objects.isNull(bfsAttrMap.get(v).getPrefix())) {
+        } else if (Objects.isNull(bfsAttrMap.get(v).getPrefixId())) {
             log.error("no path from {} to {} exists", s, v);
         } else {
-            printPath(bfsAttrMap, path, s, bfsAttrMap.get(v).getPrefix().getId());
+            printPath(bfsAttrMap, path, s, bfsAttrMap.get(v).getPrefixId());
             path.addLast(v);
         }
     }
@@ -124,7 +126,7 @@ public class ExtMutableNetwork<N extends Node, E extends Edge> implements ExtNet
             N v = ep.target();
             DFSAttr vDfsAttr = dfsAttrMap.get(v.getId());
             if (Objects.equals(vDfsAttr.getColor(), Color.WHITE)) {
-                vDfsAttr.setPrefix(u);
+                vDfsAttr.setPrefixId(u.getId());
                 dfsVisit(network, dfsAttrMap, time, v);
             }
         });
@@ -198,7 +200,7 @@ public class ExtMutableNetwork<N extends Node, E extends Edge> implements ExtNet
             EndpointPair<N> ep = network.incidentNodes(e);
             String srcId = ep.source().getId();
             String targetId = ep.target().getId();
-            extGt.addEdge((N) extGt.getNodeById(targetId), (N) extGt.getNodeById(srcId), (E) Edge.deepCopy(e));
+            extGt.addEdge(extGt.getNodeById(targetId),extGt.getNodeById(srcId), (E) Edge.deepCopy(e));
         });
         return gt;
     }
@@ -210,13 +212,65 @@ public class ExtMutableNetwork<N extends Node, E extends Edge> implements ExtNet
         ExtMutableNetwork<N, E> extMutableNetwork = new ExtMutableNetwork<>(network);
         ids.stream().sequential().forEach(id -> {
             if (Objects.equals(dfsAttrMap.get(id).getColor(), Color.WHITE)) {
-                dfsVisit(network, dfsAttrMap, time, (N) extMutableNetwork.getNodeById(id));
+                dfsVisit(network, dfsAttrMap, time,extMutableNetwork.getNodeById(id));
             }
         });
         return dfsAttrMap;
     }
 
-    private Node getNodeById(String id) {
+    public static  <N extends Node, WE extends WeightEdge> List<WE> mstKruskal(MutableNetwork<N, WE> network){
+        List<WE> es = new ArrayList<>(network.edges());
+        if(es.isEmpty()){
+            return null;
+        }
+        DisjointSet<String> disjointSet=new DisjointSet<>();
+        network.nodes().forEach(node->{
+            disjointSet.makeSet(node.getId());
+        });
+        List<WE> mstEdges = new LinkedList<>();
+        es.sort(Comparator.comparingInt(WeightEdge::getWeight));
+        es.stream().sequential().forEach(we -> {
+            String uid = network.incidentNodes(we).nodeU().getId();
+            String vid = network.incidentNodes(we).nodeV().getId();
+            if (disjointSet.findSet(uid) != disjointSet.findSet(vid)){
+                mstEdges.add(we);
+                disjointSet.union(uid,vid);
+            }
+        });
+        return mstEdges;
+    }
+
+    public static <N extends Node, WE extends WeightEdge> Map<String,PrimAttr> mstPrim(MutableNetwork<N, WE> network, String r){
+        ExtMutableNetwork<N,WE> extMutableNetwork=new ExtMutableNetwork<>(network);
+        Map<String,PrimAttr> primAttrMap= Maps.newHashMapWithExpectedSize(extMutableNetwork.getAllNodeMap().size());
+        network.nodes().forEach(n -> primAttrMap.put(n.getId(),new PrimAttr(n.getId(), Integer.MAX_VALUE,null)));
+        Node rn = extMutableNetwork.getNodeById(r);
+        if (Objects.isNull(rn)){
+            rn=extMutableNetwork.getAllNodeMap().values().stream().findFirst().orElseThrow(RuntimeException::new);
+        }
+        primAttrMap.get(rn.getId()).setKey(0);
+        PriorityQueue<PrimAttr> pq=new PriorityQueue<>(Comparator.comparingInt(PrimAttr::getKey));
+        network.nodes().stream().sequential().forEach(n -> pq.add(primAttrMap.get(n.getId())));
+        while (!pq.isEmpty()){
+            PrimAttr u = pq.poll();
+            network.adjacentNodes(extMutableNetwork.getNodeById(u.getId())).stream()
+                    .filter(v -> pq.contains(primAttrMap.get(v.getId())))
+                    .sequential()
+                    .forEach(v->{
+                        Optional<WE> we = network.edgeConnecting(extMutableNetwork.getNodeById(u.getId()), v);
+                        if (we.isPresent() && we.get().getWeight()<primAttrMap.get(v.getId()).getKey()){
+                            PrimAttr primAttr = primAttrMap.get(v.getId());
+                            primAttr.setPrefixId(u.getId());
+                            primAttr.setKey(we.get().getWeight());
+                            pq.remove(primAttr);
+                            pq.add(primAttr);
+                        }
+                    });
+        }
+        return primAttrMap;
+    }
+
+    private N getNodeById(String id) {
         return this.allNodeMap.get(id);
     }
 

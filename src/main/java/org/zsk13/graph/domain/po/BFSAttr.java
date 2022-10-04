@@ -17,5 +17,5 @@ public class BFSAttr {
     private String id;
     private Color color;
     private int depth;
-    private Node prefix;
+    private String prefixId;
 }
