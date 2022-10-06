@@ -64,6 +64,13 @@ class ExtMutableNetworkTest {
         System.out.println(primAttrMap);
     }
 
+    @Test
+    void bellmanFord() {
+        MutableNetwork<Node, WeightEdge> fordNetwork = createFord01();
+        BellmanFordResult bellmanFordResult = ExtMutableNetwork.bellmanFord(fordNetwork, "s");
+        System.out.println(bellmanFordResult);
+    }
+
     private static MutableNetwork<Node, Edge> createBfs01() {
         MutableNetwork<Node, Edge> bfs = NetworkBuilder.undirected().allowsParallelEdges(false).nodeOrder(ElementOrder.insertion()).build();
         Node v = new Node("v");
@@ -185,5 +192,26 @@ class ExtMutableNetworkTest {
         mst.addEdge(d, f, new WeightEdge("d-f",14));
         mst.addEdge(f, e, new WeightEdge("f-e",10));
         return mst;
+    }
+
+    private static MutableNetwork<Node, WeightEdge> createFord01() {
+        MutableNetwork<Node, WeightEdge> ford = NetworkBuilder.directed().allowsParallelEdges(false).nodeOrder(ElementOrder.insertion()).build();
+        Node s = new Node("s");
+        Node t = new Node("t");
+        Node y = new Node("y");
+        Node x = new Node("x");
+        Node z = new Node("z");
+
+        ford.addEdge(s, y, new WeightEdge("s-y",7));
+        ford.addEdge(s, t, new WeightEdge("s-t",6));
+        ford.addEdge(t, y, new WeightEdge("t-y",8));
+        ford.addEdge(t, x, new WeightEdge("t-x",5));
+        ford.addEdge(t, z, new WeightEdge("t-z",-4));
+        ford.addEdge(y, z, new WeightEdge("y-z",9));
+        ford.addEdge(y, x, new WeightEdge("y-x",-3));
+        ford.addEdge(x, t, new WeightEdge("x-t",-2));
+        ford.addEdge(z, x, new WeightEdge("z-x",7));
+        ford.addEdge(z, s, new WeightEdge("z-s",2));
+        return ford;
     }
 }

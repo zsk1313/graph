@@ -200,7 +200,7 @@ public class ExtMutableNetwork<N extends Node, E extends Edge> implements ExtNet
             EndpointPair<N> ep = network.incidentNodes(e);
             String srcId = ep.source().getId();
             String targetId = ep.target().getId();
-            extGt.addEdge(extGt.getNodeById(targetId),extGt.getNodeById(srcId), (E) Edge.deepCopy(e));
+            extGt.addEdge(extGt.getNodeById(targetId), extGt.getNodeById(srcId), (E) Edge.deepCopy(e));
         });
         return gt;
     }
@@ -212,19 +212,19 @@ public class ExtMutableNetwork<N extends Node, E extends Edge> implements ExtNet
         ExtMutableNetwork<N, E> extMutableNetwork = new ExtMutableNetwork<>(network);
         ids.stream().sequential().forEach(id -> {
             if (Objects.equals(dfsAttrMap.get(id).getColor(), Color.WHITE)) {
-                dfsVisit(network, dfsAttrMap, time,extMutableNetwork.getNodeById(id));
+                dfsVisit(network, dfsAttrMap, time, extMutableNetwork.getNodeById(id));
             }
         });
         return dfsAttrMap;
     }
 
-    public static  <N extends Node, WE extends WeightEdge> List<WE> mstKruskal(MutableNetwork<N, WE> network){
+    public static <N extends Node, WE extends WeightEdge> List<WE> mstKruskal(MutableNetwork<N, WE> network) {
         List<WE> es = new ArrayList<>(network.edges());
-        if(es.isEmpty()){
+        if (es.isEmpty()) {
             return null;
         }
-        DisjointSet<String> disjointSet=new DisjointSet<>();
-        network.nodes().forEach(node->{
+        DisjointSet<String> disjointSet = new DisjointSet<>();
+        network.nodes().forEach(node -> {
             disjointSet.makeSet(node.getId());
         });
         List<WE> mstEdges = new LinkedList<>();
@@ -232,33 +232,33 @@ public class ExtMutableNetwork<N extends Node, E extends Edge> implements ExtNet
         es.stream().sequential().forEach(we -> {
             String uid = network.incidentNodes(we).nodeU().getId();
             String vid = network.incidentNodes(we).nodeV().getId();
-            if (disjointSet.findSet(uid) != disjointSet.findSet(vid)){
+            if (disjointSet.findSet(uid) != disjointSet.findSet(vid)) {
                 mstEdges.add(we);
-                disjointSet.union(uid,vid);
+                disjointSet.union(uid, vid);
             }
         });
         return mstEdges;
     }
 
-    public static <N extends Node, WE extends WeightEdge> Map<String,PrimAttr> mstPrim(MutableNetwork<N, WE> network, String r){
-        ExtMutableNetwork<N,WE> extMutableNetwork=new ExtMutableNetwork<>(network);
-        Map<String,PrimAttr> primAttrMap= Maps.newHashMapWithExpectedSize(extMutableNetwork.getAllNodeMap().size());
-        network.nodes().forEach(n -> primAttrMap.put(n.getId(),new PrimAttr(n.getId(), Integer.MAX_VALUE,null)));
+    public static <N extends Node, WE extends WeightEdge> Map<String, PrimAttr> mstPrim(MutableNetwork<N, WE> network, String r) {
+        ExtMutableNetwork<N, WE> extMutableNetwork = new ExtMutableNetwork<>(network);
+        Map<String, PrimAttr> primAttrMap = Maps.newHashMapWithExpectedSize(extMutableNetwork.getAllNodeMap().size());
+        network.nodes().forEach(n -> primAttrMap.put(n.getId(), new PrimAttr(n.getId(), Integer.MAX_VALUE, null)));
         Node rn = extMutableNetwork.getNodeById(r);
-        if (Objects.isNull(rn)){
-            rn=extMutableNetwork.getAllNodeMap().values().stream().findFirst().orElseThrow(RuntimeException::new);
+        if (Objects.isNull(rn)) {
+            rn = extMutableNetwork.getAllNodeMap().values().stream().findFirst().orElseThrow(RuntimeException::new);
         }
         primAttrMap.get(rn.getId()).setKey(0);
-        PriorityQueue<PrimAttr> pq=new PriorityQueue<>(Comparator.comparingInt(PrimAttr::getKey));
+        PriorityQueue<PrimAttr> pq = new PriorityQueue<>(Comparator.comparingInt(PrimAttr::getKey));
         network.nodes().stream().sequential().forEach(n -> pq.add(primAttrMap.get(n.getId())));
-        while (!pq.isEmpty()){
+        while (!pq.isEmpty()) {
             PrimAttr u = pq.poll();
             network.adjacentNodes(extMutableNetwork.getNodeById(u.getId())).stream()
                     .filter(v -> pq.contains(primAttrMap.get(v.getId())))
                     .sequential()
-                    .forEach(v->{
+                    .forEach(v -> {
                         Optional<WE> we = network.edgeConnecting(extMutableNetwork.getNodeById(u.getId()), v);
-                        if (we.isPresent() && we.get().getWeight()<primAttrMap.get(v.getId()).getKey()){
+                        if (we.isPresent() && we.get().getWeight() < primAttrMap.get(v.getId()).getKey()) {
                             PrimAttr primAttr = primAttrMap.get(v.getId());
                             primAttr.setPrefixId(u.getId());
                             primAttr.setKey(we.get().getWeight());
@@ -268,6 +268,45 @@ public class ExtMutableNetwork<N extends Node, E extends Edge> implements ExtNet
                     });
         }
         return primAttrMap;
+    }
+
+    private static <N extends Node, WE extends WeightEdge> void initializeSingleSource(MutableNetwork<N, WE> network, Map<String, SingleSourceShortestPathAttr> singleSourceShortestPathAttrMap, String s) {
+        network.nodes().forEach(n -> {
+            singleSourceShortestPathAttrMap.put(n.getId(),new SingleSourceShortestPathAttr(n.getId(),Integer.MAX_VALUE,null));
+        });
+        singleSourceShortestPathAttrMap.values().forEach(singleSourceShortestPathAttr -> {
+            singleSourceShortestPathAttr.setDepth(Integer.MAX_VALUE);
+            singleSourceShortestPathAttr.setPrefixId(null);
+        });
+        singleSourceShortestPathAttrMap.get(s).setDepth(0);
+    }
+
+    private static <WE extends WeightEdge> void relax(Map<String, SingleSourceShortestPathAttr> singleSourceShortestPathAttrMap, String uid, String vid, WE we) {
+        if (singleSourceShortestPathAttrMap.get(uid).getDepth() != Integer.MAX_VALUE
+                && singleSourceShortestPathAttrMap.get(vid).getDepth() > singleSourceShortestPathAttrMap.get(uid).getDepth() + we.getWeight()) {
+            SingleSourceShortestPathAttr singleSourceShortestPathAttr = singleSourceShortestPathAttrMap.get(vid);
+            singleSourceShortestPathAttr.setDepth(singleSourceShortestPathAttrMap.get(uid).getDepth() + we.getWeight());
+            singleSourceShortestPathAttr.setPrefixId(uid);
+        }
+    }
+
+    public static  <N extends Node, WE extends WeightEdge> BellmanFordResult bellmanFord(MutableNetwork<N, WE> network, String s) {
+        Map<String, SingleSourceShortestPathAttr> singleSourceShortestPathAttrMap = Maps.newHashMapWithExpectedSize(network.nodes().size());
+        initializeSingleSource(network, singleSourceShortestPathAttrMap,s);
+        for (int i = 1; i <= network.nodes().size() - 1; i++) {
+            network.edges().forEach(we -> {
+                N source = network.incidentNodes(we).source();
+                N target = network.incidentNodes(we).target();
+                relax(singleSourceShortestPathAttrMap, source.getId(), target.getId(), we);
+            });
+        }
+        List<WE> weList = network.edges().stream().filter(we -> {
+            String uid = network.incidentNodes(we).source().getId();
+            String vid = network.incidentNodes(we).target().getId();
+            return singleSourceShortestPathAttrMap.get(uid).getDepth() != Integer.MAX_VALUE
+                    && singleSourceShortestPathAttrMap.get(vid).getDepth() > singleSourceShortestPathAttrMap.get(uid).getDepth() + we.getWeight();
+        }).collect(Collectors.toList());
+        return new BellmanFordResult(singleSourceShortestPathAttrMap, weList.isEmpty());
     }
 
     private N getNodeById(String id) {
